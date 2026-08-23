@@ -78,10 +78,10 @@ async def extract_contact_from_file(file: UploadFile = File(...)):
     )
 
 @router.post("", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
-def create_contact_manually(payload: ContactCreate):
-    """Manually add a contact record."""
+def create_contact_manually(payload: ContactCreate, force: bool = Query(False, description="Force insertion even if duplicate detected")):
+    """Manually add or confirm a contact record."""
     contact_dict = payload.model_dump()
-    contact, is_dup, msg = contact_service.save_contact(contact_dict)
+    contact, is_dup, msg = contact_service.save_contact(contact_dict, force_insert=force)
     return contact
 
 @router.get("", response_model=List[ContactResponse])

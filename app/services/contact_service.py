@@ -27,44 +27,78 @@ def categorize_role(job_title: Optional[str]) -> str:
         return "General"
 
 def find_duplicate_contact(conn: sqlite3.Connection, contact_data: Dict) -> Optional[sqlite3.Row]:
-    """Find existing contact if email or phone or (name + company) matches."""
+    """
+    Find existing contact if:
+    1. full_name + company match (non-empty and not generic 'Unknown').
+    2. email matches (and full_name is either matching, empty, or consistent).
+    3. direct mobile/phone matches (and full_name is either matching, empty, or consistent).
+    Avoids false positives where two distinct colleagues share a general company landline or office email.
+    """
     email = (contact_data.get("email") or "").strip().lower()
     phone = (contact_data.get("phone") or "").strip()
+    mobile = (contact_data.get("mobile") or "").strip()
     full_name = (contact_data.get("full_name") or "").strip().lower()
     company = (contact_data.get("company") or "").strip().lower()
 
     cursor = conn.cursor()
 
-    # 1. Match by non-empty email
-    if email:
-        cursor.execute("SELECT * FROM contacts WHERE LOWER(email) = ?", (email,))
-        match = cursor.fetchone()
-        if match:
-            return match
+    is_valid_name = bool(full_name and full_name not in ["unknown", "none", "n/a", "null"])
 
-    # 2. Match by non-empty phone (stripped of non-digit characters for robust comparison)
-    if phone:
-        clean_phone = re.sub(r"\D", "", phone)
-        if len(clean_phone) >= 7:
-            cursor.execute("SELECT * FROM contacts WHERE phone IS NOT NULL AND phone != ''")
-            for row in cursor.fetchall():
-                row_phone = re.sub(r"\D", "", row["phone"] or "")
-                if row_phone and (clean_phone == row_phone or clean_phone.endswith(row_phone) or row_phone.endswith(clean_phone)):
-                    return row
-
-    # 3. Match by full_name and company
-    if full_name and company:
+    # 1. Match by full_name and company (Strongest identity match)
+    if is_valid_name and company:
         cursor.execute("SELECT * FROM contacts WHERE LOWER(full_name) = ? AND LOWER(company) = ?", (full_name, company))
         match = cursor.fetchone()
         if match:
             return match
 
+    # 2. Match by email
+    if email and len(email) > 3:
+        cursor.execute("SELECT * FROM contacts WHERE LOWER(email) = ?", (email,))
+        for row in cursor.fetchall():
+            row_name = (row["full_name"] or "").strip().lower()
+            row_has_valid_name = bool(row_name and row_name not in ["unknown", "none", "n/a", "null"])
+
+            # If both have distinct valid names and they differ, do not treat as duplicate (e.g. shared company email)
+            if is_valid_name and row_has_valid_name and full_name != row_name:
+                continue
+            return row
+
+    # 3. Match by phone / mobile
+    test_phones = [p for p in [phone, mobile] if p]
+    for p in test_phones:
+        clean_p = re.sub(r"\D", "", p)
+        if len(clean_p) >= 8:  # Minimum 8 digits for valid phone number
+            cursor.execute("SELECT * FROM contacts WHERE (phone IS NOT NULL AND phone != '') OR (mobile IS NOT NULL AND mobile != '')")
+            for row in cursor.fetchall():
+                row_phones = [re.sub(r"\D", "", row["phone"] or ""), re.sub(r"\D", "", row["mobile"] or "")]
+                row_name = (row["full_name"] or "").strip().lower()
+                row_has_valid_name = bool(row_name and row_name not in ["unknown", "none", "n/a", "null"])
+
+                # If names are distinct, different colleagues likely share the company switchboard
+                if is_valid_name and row_has_valid_name and full_name != row_name:
+                    continue
+
+                for rp in row_phones:
+                    if len(rp) >= 8 and (clean_p == rp or (len(clean_p) >= 9 and len(rp) >= 9 and (clean_p.endswith(rp) or rp.endswith(clean_p)))):
+                        return row
+
+    # 4. Exact full_name match with non-empty name
+    if is_valid_name:
+        cursor.execute("SELECT * FROM contacts WHERE LOWER(full_name) = ?", (full_name,))
+        matches = cursor.fetchall()
+        if len(matches) == 1:
+            row = matches[0]
+            # If same exact name, verify no conflicting different company
+            row_company = (row["company"] or "").strip().lower()
+            if not company or not row_company or company == row_company:
+                return row
+
     return None
 
-def save_contact(contact_data: Dict, db_path: Optional[str] = None) -> Tuple[ContactResponse, bool, str]:
+def save_contact(contact_data: Dict, db_path: Optional[str] = None, force_insert: bool = False) -> Tuple[ContactResponse, bool, str]:
     """
     Saves a contact into SQLite database.
-    If duplicate exists, ignores insertion and returns existing contact.
+    If duplicate exists and force_insert is False, ignores insertion and returns existing contact.
     Returns (ContactResponse, is_duplicate, status_message)
     """
     full_name = contact_data.get("full_name") or "Unknown"
@@ -84,23 +118,24 @@ def save_contact(contact_data: Dict, db_path: Optional[str] = None) -> Tuple[Con
     address = contact_data.get("address") or ""
 
     with get_db(db_path) as conn:
-        existing = find_duplicate_contact(conn, contact_data)
-        if existing:
-            contact = ContactResponse(
-                id=existing["id"],
-                full_name=existing["full_name"],
-                job_title=existing["job_title"],
-                role=existing["role"],
-                company=existing["company"],
-                email=existing["email"],
-                phone=existing["phone"],
-                mobile=existing["mobile"],
-                website=existing["website"],
-                address=existing["address"],
-                created_at=str(existing["created_at"]),
-                updated_at=str(existing["updated_at"])
-            )
-            return contact, True, "Duplicate data ignored. Existing contact returned."
+        if not force_insert:
+            existing = find_duplicate_contact(conn, contact_data)
+            if existing:
+                contact = ContactResponse(
+                    id=existing["id"],
+                    full_name=existing["full_name"],
+                    job_title=existing["job_title"],
+                    role=existing["role"],
+                    company=existing["company"],
+                    email=existing["email"],
+                    phone=existing["phone"],
+                    mobile=existing["mobile"],
+                    website=existing["website"],
+                    address=existing["address"],
+                    created_at=str(existing["created_at"]),
+                    updated_at=str(existing["updated_at"])
+                )
+                return contact, True, "Duplicate data ignored. Existing contact returned."
 
         cursor = conn.cursor()
         cursor.execute("""

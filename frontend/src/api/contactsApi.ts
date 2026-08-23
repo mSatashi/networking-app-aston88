@@ -31,10 +31,11 @@ export const contactsApi = {
   },
 
   /**
-   * Manually create or save contact
+   * Manually create or save contact (optional force insertion)
    */
-  async createContact(contact: ContactCreateInput): Promise<Contact> {
-    return request<Contact>('/api/contacts', {
+  async createContact(contact: ContactCreateInput, force: boolean = false): Promise<Contact> {
+    const url = force ? '/api/contacts?force=true' : '/api/contacts';
+    return request<Contact>(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
