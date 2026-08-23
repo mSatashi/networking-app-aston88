@@ -12,17 +12,21 @@ class ApiService {
   }
 
   static String get baseUrl {
-    if (_overrideBaseUrl.isNotEmpty) {
-      return _overrideBaseUrl;
+    String raw = _overrideBaseUrl;
+    if (raw.isEmpty) {
+      const envApiUrl = String.fromEnvironment('API_URL');
+      if (envApiUrl.isNotEmpty) {
+        raw = envApiUrl;
+      } else {
+        raw = 'https://aston88.eksperimen.my.id';
+      }
     }
-    // Allow passing custom API URL via --dart-define=API_URL=https://...
-    const envApiUrl = String.fromEnvironment('API_URL');
-    if (envApiUrl.isNotEmpty) {
-      return envApiUrl.replaceAll(RegExp(r'/$'), '').replaceAll(RegExp(r'/api$'), '');
+    // Clean trailing slashes or trailing /api
+    raw = raw.trim().replaceAll(RegExp(r'/$'), '');
+    if (raw.endsWith('/api')) {
+      raw = raw.substring(0, raw.length - 4);
     }
-
-    // Default Staging Production URL
-    return 'https://aston88.eksperimen.my.id';
+    return raw;
   }
 
   /// Get list of contacts with optional filters
