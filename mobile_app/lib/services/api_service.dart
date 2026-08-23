@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/contact.dart';
 
@@ -16,14 +15,14 @@ class ApiService {
     if (_overrideBaseUrl.isNotEmpty) {
       return _overrideBaseUrl;
     }
-    // Default fallback based on platform
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000'; // Special loopback IP for Android Emulator
-    } else {
-      return 'http://localhost:8000';
+    // Allow passing custom API URL via --dart-define=API_URL=https://...
+    const envApiUrl = String.fromEnvironment('API_URL');
+    if (envApiUrl.isNotEmpty) {
+      return envApiUrl.replaceAll(RegExp(r'/$'), '').replaceAll(RegExp(r'/api$'), '');
     }
+
+    // Default Staging Production URL
+    return 'https://aston88.eksperimen.my.id';
   }
 
   /// Get list of contacts with optional filters
