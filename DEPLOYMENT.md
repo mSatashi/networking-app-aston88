@@ -71,7 +71,7 @@ Build and start the container stack in detached mode:
 docker compose up -d --build
 ```
 
-Verify that both containers (`web` and `nginx`) are running:
+Verify that both containers (`web` and `frontend`) are running:
 
 ```bash
 docker compose ps
@@ -83,9 +83,10 @@ View live logs:
 docker compose logs -f
 ```
 
-At this point, your API is accessible via your VPS IP:
-- Health Check: `http://YOUR_VPS_IP/`
-- Interactive Swagger UI: `http://YOUR_VPS_IP/docs`
+At this point, your full-stack application is accessible via your VPS IP:
+- **React Frontend Web App**: `http://YOUR_VPS_IP/`
+- **Backend API Base**: `http://YOUR_VPS_IP/api/contacts`
+- **Interactive Swagger UI**: `http://YOUR_VPS_IP/docs`
 
 ---
 
