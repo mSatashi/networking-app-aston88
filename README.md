@@ -104,6 +104,26 @@ docker compose logs -f
 
 For full step-by-step instructions (including SSL configuration via Let's Encrypt / Certbot), refer to [DEPLOYMENT.md](DEPLOYMENT.md).
 
+---
+
+## 📱 Flutter Mobile Application (Android / iOS)
+
+The repository includes a professional Flutter Android & iOS mobile app located in [`mobile_app/`](mobile_app/):
+
+```bash
+# Navigate to mobile app directory
+cd mobile_app
+
+# Fetch Flutter dependencies
+flutter pub get
+
+# Run application on connected device / emulator
+flutter run
+```
+
+For full mobile app features and configuration guide, see [`mobile_app/README_FLUTTER.md`](mobile_app/README_FLUTTER.md).
+
+
 
 ## 📑 API Endpoints Summary
 
