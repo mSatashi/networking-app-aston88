@@ -1,0 +1,44 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Databases & SQLite
+*.db
+*.sqlite
+*.sqlite3
+contacts.db
+
+# Pytest / Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.nox/
+.hypothesis/
+
+# IDE & OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode/
+.idea/
+
+# Developer / Temporary files
+scratch/
+*.log
