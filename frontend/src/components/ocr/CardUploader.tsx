@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Link as LinkIcon, Image as ImageIcon, Sparkles, AlertCircle } from 'lucide-react';
+import { Upload, Link as LinkIcon, Sparkles, AlertCircle } from 'lucide-react';
 
 interface CardUploaderProps {
   onFileSelect: (file: File) => void;
@@ -7,20 +7,6 @@ interface CardUploaderProps {
   previewUrl: string | null;
   disabled?: boolean;
 }
-
-// Sample card images for one-click testing
-const SAMPLE_CARDS = [
-  {
-    name: 'Tech Executive (CTO)',
-    url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&q=80',
-    desc: 'Sample Modern Tech Card',
-  },
-  {
-    name: 'Product Designer',
-    url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=800&q=80',
-    desc: 'Sample Creative Studio Card',
-  },
-];
 
 export const CardUploader: React.FC<CardUploaderProps> = ({
   onFileSelect,
@@ -165,7 +151,7 @@ export const CardUploader: React.FC<CardUploaderProps> = ({
             style={{
               border: `2px dashed ${isDragOver ? 'var(--accent-primary)' : 'var(--border-color)'}`,
               borderRadius: 'var(--radius-lg)',
-              padding: '2.5rem 1.5rem',
+              padding: '2.75rem 1.5rem',
               textAlign: 'center',
               cursor: disabled ? 'not-allowed' : 'pointer',
               background: isDragOver ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-surface)',
@@ -179,8 +165,8 @@ export const CardUploader: React.FC<CardUploaderProps> = ({
           >
             <div
               style={{
-                width: '54px',
-                height: '54px',
+                width: '56px',
+                height: '56px',
                 borderRadius: '50%',
                 background: 'rgba(99, 102, 241, 0.15)',
                 color: 'var(--accent-primary)',
@@ -189,7 +175,7 @@ export const CardUploader: React.FC<CardUploaderProps> = ({
                 justifyContent: 'center',
               }}
             >
-              <Upload size={26} />
+              <Upload size={28} />
             </div>
             <div>
               <p style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
@@ -225,49 +211,12 @@ export const CardUploader: React.FC<CardUploaderProps> = ({
                 disabled={disabled || !urlInput.trim()}
                 style={{ flexShrink: 0 }}
               >
-                <Sparkles size={16} /> Load Image
+                <Sparkles size={16} /> Scan URL
               </button>
             </div>
           </div>
         </form>
       )}
-
-      {/* Quick Test Demo Samples */}
-      <div style={{ marginTop: '0.5rem' }}>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>
-          OR TRY A SAMPLE BUSINESS CARD:
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem' }}>
-          {SAMPLE_CARDS.map((sample, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => {
-                setUrlInput(sample.url);
-                onUrlSubmit(sample.url);
-              }}
-              disabled={disabled}
-              style={{
-                textAlign: 'left',
-                padding: '0.625rem 0.875rem',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-color)',
-                fontSize: '0.8125rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.625rem',
-              }}
-            >
-              <ImageIcon size={16} color="var(--accent-cyan)" />
-              <div style={{ overflow: 'hidden' }}>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{sample.name}</div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{sample.desc}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Preview Card */}
       {previewUrl && (
