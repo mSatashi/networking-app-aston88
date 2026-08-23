@@ -71,7 +71,7 @@ Build and start the container stack in detached mode:
 docker compose up -d --build
 ```
 
-Verify that both containers (`web` and `frontend`) are running:
+Verify that both containers (`api` and `web`) are running:
 
 ```bash
 docker compose ps
@@ -122,7 +122,21 @@ If you have a domain pointed to your VPS IP (e.g. `api.yourdomain.com`):
        client_max_body_size 20M;
 
        location / {
-           proxy_pass http://web:8000;
+           root /usr/share/nginx/html;
+           index index.html index.htm;
+           try_files $uri $uri/ /index.html;
+       }
+
+       location /api/ {
+           proxy_pass http://api:8000/api/;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+
+       location ~ ^/(docs|redoc|openapi\.json) {
+           proxy_pass http://api:8000;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -133,7 +147,7 @@ If you have a domain pointed to your VPS IP (e.g. `api.yourdomain.com`):
 
 4. Mount the Let's Encrypt certificates into the Nginx container by adding volume mounts in `docker-compose.yml`:
    ```yaml
-   nginx:
+   web:
      volumes:
        - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
        - /etc/letsencrypt:/etc/letsencrypt:ro
@@ -141,7 +155,7 @@ If you have a domain pointed to your VPS IP (e.g. `api.yourdomain.com`):
 
 5. Restart the containers:
    ```bash
-   docker compose restart nginx
+   docker compose restart web
    ```
 
 ---
@@ -161,7 +175,7 @@ If you have a domain pointed to your VPS IP (e.g. `api.yourdomain.com`):
 
 - **Backup SQLite Database**:
   ```bash
-  docker compose exec web cp /app/data/contacts.db /app/data/contacts_backup.db
+  docker compose exec api cp /app/data/contacts.db /app/data/contacts_backup.db
   # Or copy from host volume:
   docker run --rm -v networking-app-aston88_sqlite_data:/data -v $(pwd):/backup alpine cp /data/contacts.db /backup/contacts_backup.db
   ```

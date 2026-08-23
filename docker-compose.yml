@@ -1,9 +1,9 @@
 services:
-  web:
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: networking_app_web
+    container_name: networking_app_api
     restart: unless-stopped
     env_file:
       - .env
@@ -18,18 +18,18 @@ services:
       retries: 3
       start_period: 5s
 
-  frontend:
+  web:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: networking_app_frontend
+    container_name: networking_app_web
     restart: unless-stopped
     ports:
       - "80:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      web:
+      api:
         condition: service_healthy
     networks:
       - app_network
