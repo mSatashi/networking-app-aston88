@@ -76,7 +76,7 @@ export const ScanModal: React.FC<ScanModalProps> = ({
         setOcrStatus('success');
         setDuplicateResponse(res);
         setExtractedData(res.contact);
-        warning('Duplicate Contact Found', 'This business card matches an existing record.');
+        warning('Potential Duplicate Detected', 'This card shares properties with an existing record. You can review and save as new if distinct.');
       } else {
         setOcrStatus('success');
         setExtractedData(res.contact);
@@ -106,7 +106,7 @@ export const ScanModal: React.FC<ScanModalProps> = ({
         setOcrStatus('success');
         setDuplicateResponse(res);
         setExtractedData(res.contact);
-        warning('Duplicate Contact Found', 'This business card matches an existing record.');
+        warning('Potential Duplicate Detected', 'This card shares properties with an existing record. You can review and save as new if distinct.');
       } else {
         setOcrStatus('success');
         setExtractedData(res.contact);
@@ -140,8 +140,9 @@ export const ScanModal: React.FC<ScanModalProps> = ({
   const handleSaveContact = async (data: ContactCreateInput) => {
     setIsSaving(true);
     try {
-      // When saving from review, save/confirm with backend
-      const saved = await contactsApi.createContact(data);
+      // If user is saving after duplicate warning, use force=true so they are not blocked
+      const isOverride = !!duplicateResponse;
+      const saved = await contactsApi.createContact(data, isOverride);
       success('Contact Saved', `${saved.full_name} has been added to your directory.`);
       onSuccess(saved);
       handleClose();
@@ -201,6 +202,10 @@ export const ScanModal: React.FC<ScanModalProps> = ({
             onViewContact={(c) => {
               handleClose();
               onViewExisting(c);
+            }}
+            onContinueReview={() => {
+              // Dismiss duplicate alert banner and proceed to review form
+              setDuplicateResponse(null);
             }}
           />
         )}

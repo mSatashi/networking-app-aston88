@@ -1,17 +1,18 @@
 import React from 'react';
-import { AlertTriangle, ExternalLink, UserCheck } from 'lucide-react';
+import { AlertTriangle, ExternalLink, UserCheck, ArrowRight } from 'lucide-react';
 import { Contact } from '../../types/contact';
 import { Badge } from '../common/Badge';
 
 interface DuplicateAlertProps {
   existingContact: Contact;
   onViewContact: (contact: Contact) => void;
-  onDismiss?: () => void;
+  onContinueReview?: () => void;
 }
 
 export const DuplicateAlert: React.FC<DuplicateAlertProps> = ({
   existingContact,
   onViewContact,
+  onContinueReview,
 }) => {
   return (
     <div
@@ -39,10 +40,10 @@ export const DuplicateAlert: React.FC<DuplicateAlertProps> = ({
         </div>
         <div style={{ flex: 1 }}>
           <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#fbbf24' }}>
-            Duplicate Contact Detected
+            Duplicate Contact Warning
           </h4>
           <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-            The backend found a matching contact record (matched via email, phone, or name & company). To prevent duplicate entries, the existing record has been preserved.
+            The backend found a potential match with an existing record. If this is a different person (e.g. colleagues sharing an office number or company domain), you can continue to review and save as a new contact.
           </p>
         </div>
       </div>
@@ -89,16 +90,26 @@ export const DuplicateAlert: React.FC<DuplicateAlertProps> = ({
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <Badge role={existingContact.role} size="sm" />
           <button
             type="button"
-            className="btn-primary"
+            className="btn-secondary"
             onClick={() => onViewContact(existingContact)}
-            style={{ fontSize: '0.8125rem', padding: '0.4rem 0.875rem' }}
+            style={{ fontSize: '0.8125rem', padding: '0.4rem 0.75rem' }}
           >
-            <UserCheck size={14} /> View Existing Contact <ExternalLink size={12} />
+            <UserCheck size={14} /> View Existing <ExternalLink size={12} />
           </button>
+          {onContinueReview && (
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={onContinueReview}
+              style={{ fontSize: '0.8125rem', padding: '0.4rem 0.875rem' }}
+            >
+              <span>Review & Save as New</span> <ArrowRight size={14} />
+            </button>
+          )}
         </div>
       </div>
     </div>
