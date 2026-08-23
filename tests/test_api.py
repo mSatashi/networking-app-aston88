@@ -110,3 +110,13 @@ def test_get_contacts_by_role_grouping():
     assert isinstance(grouped, list)
     role_names = [g["role"] for g in grouped]
     assert "Executive" in role_names or "Operations & Admin" in role_names or "Management" in role_names
+
+def test_openapi_schema_endpoint():
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    schema = response.json()
+    assert schema["openapi"].startswith("3.")
+    assert "/api/contacts" in schema["paths"]
+    assert "/api/contacts/extract-url" in schema["paths"]
+    assert "/api/contacts/extract-file" in schema["paths"]
+

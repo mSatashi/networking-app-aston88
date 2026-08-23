@@ -1,0 +1,816 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Networking App - Business Card OCR Backend API",
+    "description": "Backend API for retrieving business card data via Roboflow OCR, storing in database, ignoring duplicate records, and keeping contacts categorized by role.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/contacts/extract-url": {
+      "post": {
+        "tags": [
+          "Contacts & OCR"
+        ],
+        "summary": "Extract Contact From Url",
+        "description": "Extract contact details from image URL via Roboflow OCR Workflow.\nExtracted data is categorized by role and saved to SQLite DB.\nIf contact already exists (duplicate email/phone), duplicate insertion is ignored.",
+        "operationId": "extract_contact_from_url_api_contacts_extract_url_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractURLRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractOCRResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contacts/extract-file": {
+      "post": {
+        "tags": [
+          "Contacts & OCR"
+        ],
+        "summary": "Extract Contact From File",
+        "description": "Extract contact details from uploaded image file via Roboflow OCR Workflow.\nExtracted data is categorized by role and saved to SQLite DB.\nIf contact already exists (duplicate email/phone), duplicate insertion is ignored.",
+        "operationId": "extract_contact_from_file_api_contacts_extract_file_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_extract_contact_from_file_api_contacts_extract_file_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractOCRResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contacts": {
+      "post": {
+        "tags": [
+          "Contacts & OCR"
+        ],
+        "summary": "Create Contact Manually",
+        "description": "Manually add a contact record.",
+        "operationId": "create_contact_manually_api_contacts_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Contacts & OCR"
+        ],
+        "summary": "List Contacts",
+        "description": "Retrieve contacts with optional filtering by role, company, or search term.",
+        "operationId": "list_contacts_api_contacts_get",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter contacts by role (e.g. Executive, Engineering, Management, Sales & Marketing)",
+              "title": "Role"
+            },
+            "description": "Filter contacts by role (e.g. Executive, Engineering, Management, Sales & Marketing)"
+          },
+          {
+            "name": "company",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter contacts by company name",
+              "title": "Company"
+            },
+            "description": "Filter contacts by company name"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search term for name, title, or email",
+              "title": "Search"
+            },
+            "description": "Search term for name, title, or email"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContactResponse"
+                  },
+                  "title": "Response List Contacts Api Contacts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contacts/by-role": {
+      "get": {
+        "tags": [
+          "Contacts & OCR"
+        ],
+        "summary": "Get Contacts By Role",
+        "description": "Retrieve contacts grouped by role category.",
+        "operationId": "get_contacts_by_role_api_contacts_by_role_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoleGroupResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Get Contacts By Role Api Contacts By Role Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contacts/{contact_id}": {
+      "get": {
+        "tags": [
+          "Contacts & OCR"
+        ],
+        "summary": "Get Contact Detail",
+        "description": "Get single contact by ID.",
+        "operationId": "get_contact_detail_api_contacts__contact_id__get",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Contact Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Contacts & OCR"
+        ],
+        "summary": "Remove Contact",
+        "description": "Delete contact by ID.",
+        "operationId": "remove_contact_api_contacts__contact_id__delete",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Contact Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health Check",
+        "operationId": "health_check__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_extract_contact_from_file_api_contacts_extract_file_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_extract_contact_from_file_api_contacts_extract_file_post"
+      },
+      "ContactCreate": {
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "title": "Full Name",
+            "description": "Full name of contact",
+            "examples": [
+              "Jane Doe"
+            ]
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title",
+            "description": "Job title / position",
+            "examples": [
+              "Senior Software Engineer"
+            ]
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role",
+            "description": "Derived role category (e.g. Executive, Engineering, Management)",
+            "default": "General",
+            "examples": [
+              "Engineering"
+            ]
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company",
+            "description": "Company or organization",
+            "examples": [
+              "Tech Corp"
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "Email address",
+            "examples": [
+              "jane.doe@techcorp.com"
+            ]
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "Phone number",
+            "examples": [
+              "+62 812 3456 7890"
+            ]
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile",
+            "description": "Mobile number",
+            "examples": [
+              "+62 812 3456 7890"
+            ]
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website",
+            "description": "Website URL",
+            "examples": [
+              "https://techcorp.com"
+            ]
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Physical address",
+            "examples": [
+              "Jakarta, Indonesia"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "full_name"
+        ],
+        "title": "ContactCreate",
+        "example": {
+          "company": "Tech Innovations Inc.",
+          "email": "jane.doe@techinnovations.com",
+          "full_name": "Jane Doe",
+          "job_title": "Chief Technology Officer",
+          "phone": "+62 812 9876 5432",
+          "website": "https://techinnovations.com"
+        }
+      },
+      "ContactResponse": {
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "title": "Full Name",
+            "description": "Full name of contact",
+            "examples": [
+              "Jane Doe"
+            ]
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title",
+            "description": "Job title / position",
+            "examples": [
+              "Senior Software Engineer"
+            ]
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role",
+            "description": "Derived role category (e.g. Executive, Engineering, Management)",
+            "default": "General",
+            "examples": [
+              "Engineering"
+            ]
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company",
+            "description": "Company or organization",
+            "examples": [
+              "Tech Corp"
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "Email address",
+            "examples": [
+              "jane.doe@techcorp.com"
+            ]
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "Phone number",
+            "examples": [
+              "+62 812 3456 7890"
+            ]
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile",
+            "description": "Mobile number",
+            "examples": [
+              "+62 812 3456 7890"
+            ]
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website",
+            "description": "Website URL",
+            "examples": [
+              "https://techcorp.com"
+            ]
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Physical address",
+            "examples": [
+              "Jakarta, Indonesia"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "examples": [
+              1
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "examples": [
+              "2026-08-23T15:00:00"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "examples": [
+              "2026-08-23T15:00:00"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "full_name",
+          "id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ContactResponse"
+      },
+      "ExtractOCRResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "'inserted' or 'duplicate_ignored'",
+            "examples": [
+              "inserted"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "examples": [
+              "Contact successfully created and assigned to Engineering role."
+            ]
+          },
+          "is_duplicate": {
+            "type": "boolean",
+            "title": "Is Duplicate",
+            "examples": [
+              false
+            ]
+          },
+          "contact": {
+            "$ref": "#/components/schemas/ContactResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "message",
+          "is_duplicate",
+          "contact"
+        ],
+        "title": "ExtractOCRResponse"
+      },
+      "ExtractURLRequest": {
+        "properties": {
+          "image_url": {
+            "type": "string",
+            "title": "Image Url",
+            "description": "URL of business card image to extract",
+            "examples": [
+              "https://images.unsplash.com/photo-1589829545856-d10d557cf95f"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_url"
+        ],
+        "title": "ExtractURLRequest",
+        "example": {
+          "image_url": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f"
+        }
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "RoleGroupResponse": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "examples": [
+              "Engineering"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "examples": [
+              5
+            ]
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/ContactResponse"
+            },
+            "type": "array",
+            "title": "Contacts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "count",
+          "contacts"
+        ],
+        "title": "RoleGroupResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

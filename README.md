@@ -60,16 +60,31 @@ A high-performance RESTful Backend API built with **Python**, **FastAPI**, **SQL
 
 ---
 
-## 🏃 Running the Backend Server
+## 🏃 Running & Manual Testing with OpenAPI (Swagger UI)
 
-Start the Uvicorn development server:
+### 1. Interactive Swagger UI (Manual Browser Testing)
+Start the backend server:
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-- **Interactive API Documentation (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+Open your browser and navigate to:
+- **Swagger UI (Interactive Manual Testing)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+  - Try out endpoints directly in the browser (POST JSON, upload card image files, filter contacts by role).
+  - Pre-filled sample payloads and schema definitions are included.
+- **ReDoc API Spec**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+- **Raw OpenAPI JSON Spec**: [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json)
+
+### 2. Exporting OpenAPI JSON Spec (For Postman / Insomnia / Swagger Editor)
+You can generate `openapi.json` directly from terminal:
+
+```bash
+python3 export_openapi.py
+```
+
+This creates `openapi.json` in the root folder, which you can import directly into **Postman** (Import -> File -> openapi.json) or **Insomnia** for manual collection testing.
+
 
 ---
 
