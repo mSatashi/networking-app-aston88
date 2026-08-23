@@ -120,3 +120,21 @@ def test_openapi_schema_endpoint():
     assert "/api/contacts/extract-url" in schema["paths"]
     assert "/api/contacts/extract-file" in schema["paths"]
 
+def test_invalid_image_upload_validation():
+    # Upload plain text disguised as image
+    response = client.post(
+        "/api/contacts/extract-file",
+        files={"file": ("fake.jpg", b"This is not a real image", "image/jpeg")}
+    )
+    assert response.status_code == 400
+    assert "not a valid image format" in response.json()["detail"]
+
+def test_empty_image_upload_validation():
+    response = client.post(
+        "/api/contacts/extract-file",
+        files={"file": ("empty.jpg", b"", "image/jpeg")}
+    )
+    assert response.status_code == 400
+    assert "Empty image file uploaded" in response.json()["detail"]
+
+

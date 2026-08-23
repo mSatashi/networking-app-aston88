@@ -9,9 +9,12 @@ def get_db_path() -> str:
 
 def init_db(db_path: str = None) -> None:
     path = db_path or get_db_path()
+    dir_name = os.path.dirname(path)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
     conn = sqlite3.connect(path)
     cursor = conn.cursor()
-    
+
     # Create contacts table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS contacts (
@@ -41,6 +44,9 @@ def init_db(db_path: str = None) -> None:
 @contextmanager
 def get_db(db_path: str = None) -> Generator[sqlite3.Connection, None, None]:
     path = db_path or get_db_path()
+    dir_name = os.path.dirname(path)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     try:

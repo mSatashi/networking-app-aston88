@@ -17,6 +17,27 @@ from app.services import contact_service
 
 router = APIRouter(prefix="/api/contacts", tags=["Contacts & OCR"])
 
+def is_valid_image(content: bytes) -> bool:
+    """Validate image bytes using magic byte signatures (JPEG, PNG, WebP, GIF, BMP)."""
+    if len(content) < 12:
+        return False
+    # JPEG
+    if content.startswith(b"\xff\xd8\xff"):
+        return True
+    # PNG
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return True
+    # WebP (RIFF + WEBP)
+    if content.startswith(b"RIFF") and content[8:12] == b"WEBP":
+        return True
+    # GIF
+    if content.startswith(b"GIF87a") or content.startswith(b"GIF89a"):
+        return True
+    # BMP
+    if content.startswith(b"BM"):
+        return True
+    return False
+
 @router.post("/extract-url", response_model=ExtractOCRResponse, status_code=status.HTTP_201_CREATED)
 def extract_contact_from_url(payload: ExtractURLRequest):
     """
@@ -34,8 +55,15 @@ def extract_contact_from_url(payload: ExtractURLRequest):
     except RoboflowOCRError as e:
         raise HTTPException(status_code=502, detail=f"OCR Service Error: {str(e)}")
 
-    if not extracted.get("full_name") and not extracted.get("email") and not extracted.get("phone"):
-        raise HTTPException(status_code=422, detail="Unable to extract meaningful contact information from provided card image")
+    # Ensure meaningful contact data was detected
+    has_name = bool(extracted.get("full_name") and extracted.get("full_name") != "Unknown")
+    has_contact_info = bool(extracted.get("email") or extracted.get("phone") or extracted.get("company") or extracted.get("job_title"))
+    
+    if not has_name and not has_contact_info:
+        raise HTTPException(
+            status_code=422,
+            detail="Unable to detect business card or extract contact details from this image. Please upload a clear business card photo."
+        )
 
     contact, is_dup, msg = contact_service.save_contact(extracted)
     return ExtractOCRResponse(
@@ -52,12 +80,18 @@ async def extract_contact_from_file(file: UploadFile = File(...)):
     Extracted data is categorized by role and saved to SQLite DB.
     If contact already exists (duplicate email/phone), duplicate insertion is ignored.
     """
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Uploaded file must be an image (JPEG, PNG, WebP)")
+    if file.content_type and not (file.content_type.startswith("image/") or file.content_type == "application/octet-stream"):
+        raise HTTPException(status_code=400, detail="Uploaded file must be a valid image (JPEG, PNG, WebP)")
 
     image_bytes = await file.read()
     if not image_bytes:
-        raise HTTPException(status_code=400, detail="Empty file uploaded")
+        raise HTTPException(status_code=400, detail="Empty image file uploaded")
+
+    if len(image_bytes) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image file size exceeds 15MB limit")
+
+    if not is_valid_image(image_bytes):
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid image format (JPEG, PNG, WebP, BMP, GIF)")
 
     try:
         client = RoboflowClient()
@@ -68,6 +102,16 @@ async def extract_contact_from_file(file: UploadFile = File(...)):
         raise HTTPException(status_code=504, detail=f"OCR Gateway Timeout: {str(e)}")
     except RoboflowOCRError as e:
         raise HTTPException(status_code=502, detail=f"OCR Service Error: {str(e)}")
+
+    # Ensure meaningful contact data was detected
+    has_name = bool(extracted.get("full_name") and extracted.get("full_name") != "Unknown")
+    has_contact_info = bool(extracted.get("email") or extracted.get("phone") or extracted.get("company") or extracted.get("job_title"))
+
+    if not has_name and not has_contact_info:
+        raise HTTPException(
+            status_code=422,
+            detail="Unable to detect business card or extract contact details from this image. Please upload a clear business card photo."
+        )
 
     contact, is_dup, msg = contact_service.save_contact(extracted)
     return ExtractOCRResponse(
