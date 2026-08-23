@@ -85,8 +85,25 @@ python3 export_openapi.py
 
 This creates `openapi.json` in the root folder, which you can import directly into **Postman** (Import -> File -> openapi.json) or **Insomnia** for manual collection testing.
 
-
 ---
+
+## 🐳 VPS Deployment with Docker Compose & Nginx
+
+To deploy the entire stack to a VPS using Docker Compose and Nginx Reverse Proxy:
+
+```bash
+# 1. Build & start containers in detached mode
+docker compose up -d --build
+
+# 2. Check container status
+docker compose ps
+
+# 3. View live logs
+docker compose logs -f
+```
+
+For full step-by-step instructions (including SSL configuration via Let's Encrypt / Certbot), refer to [DEPLOYMENT.md](DEPLOYMENT.md).
+
 
 ## 📑 API Endpoints Summary
 

@@ -20,6 +20,7 @@ ENV/
 *.sqlite
 *.sqlite3
 contacts.db
+data/
 
 # Pytest / Testing
 .pytest_cache/
