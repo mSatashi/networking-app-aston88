@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../models/contact.dart';
+import '../screens/camera_scanner_screen.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
@@ -194,7 +195,38 @@ class _ScanModalState extends State<ScanModal> {
             else if (_ocrResult != null)
               _buildOCRSuccessCard(_ocrResult!)
             else ...[
-              // Option 1: Camera & Gallery
+              // Option 0: Live Viewfinder Scanner Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accentIndigo,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CameraScannerScreen()),
+                    );
+                    if (result == true) {
+                      widget.onScanComplete();
+                    }
+                  },
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 24),
+                  label: const Text(
+                    'Live Viewfinder Scanner',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Option 1: Quick Photo & Gallery
               Row(
                 children: [
                   Expanded(
@@ -202,26 +234,23 @@ class _ScanModalState extends State<ScanModal> {
                       onTap: () => _pickImage(ImageSource.camera),
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppTheme.accentIndigo.withValues(alpha: 0.15),
+                          color: AppTheme.bgPrimary,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.accentIndigo.withValues(alpha: 0.4)),
+                          border: Border.all(color: Colors.white10),
                         ),
                         child: Column(
                           children: const [
-                            Icon(Icons.camera_alt_rounded, size: 36, color: AppTheme.accentIndigo),
-                            SizedBox(height: 10),
+                            Icon(Icons.camera_alt_rounded, size: 28, color: AppTheme.accentCyan),
+                            SizedBox(height: 6),
                             Text(
-                              'Take Photo',
+                              'Quick Photo',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
+                                fontSize: 13,
                                 color: AppTheme.textPrimary,
                               ),
-                            ),
-                            Text(
-                              'Use Camera',
-                              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                             ),
                           ],
                         ),

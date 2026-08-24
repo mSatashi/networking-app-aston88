@@ -3,8 +3,8 @@ import '../models/contact.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/contact_detail_sheet.dart';
-import '../widgets/scan_modal.dart';
 import '../widgets/manual_contact_modal.dart';
+import 'camera_scanner_screen.dart';
 import 'grouped_roles_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -64,18 +64,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _openScanModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ScanModal(
-        onScanComplete: () {
-          _fetchContacts();
-        },
-      ),
+  Future<void> _openLiveScanner() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CameraScannerScreen()),
     );
+    if (result == true) {
+      _fetchContacts();
+    }
   }
+
+
 
   void _openManualAddModal() {
     showModalBottomSheet(
@@ -126,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   foregroundColor: Colors.white,
                   icon: const Icon(Icons.qr_code_scanner_rounded),
                   label: const Text('Scan Card', style: TextStyle(fontWeight: FontWeight.bold)),
-                  onPressed: _openScanModal,
+                  onPressed: _openLiveScanner,
                 ),
               ],
             )
