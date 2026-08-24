@@ -4,6 +4,6 @@ import 'package:mobile_app/main.dart';
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(const BusinessCardNetworkingApp());
-    expect(find.text('Networking Hub'), findsOneWidget);
+    expect(find.text('Business Card OCR'), findsOneWidget);
   });
 }
