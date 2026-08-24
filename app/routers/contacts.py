@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, HTTPException, UploadFile, File, Query, status
 from typing import List, Optional, Dict, Any
 from app.models import (
@@ -19,7 +20,8 @@ router = APIRouter(prefix="/api/contacts", tags=["Contacts & OCR"])
 
 PROMPT_KEYWORDS = [
     "transcribe", "return an empty string", "never guess",
-    "absent or unreadable", "character-for-character", "separately identified"
+    "absent or unreadable", "character-for-character", "separately identified",
+    "placeholder", "sample", "example"
 ]
 
 def is_valid_text(val: Optional[str]) -> bool:
@@ -27,7 +29,7 @@ def is_valid_text(val: Optional[str]) -> bool:
         return False
     val_str = str(val).strip()
     val_lower = val_str.lower()
-    if not val_lower or val_lower in ["unknown", "none", "null", "n/a", "test"]:
+    if not val_lower or val_lower in ["unknown", "none", "null", "n/a", "test", "undefined"]:
         return False
     for kw in PROMPT_KEYWORDS:
         if kw in val_lower:
@@ -35,25 +37,38 @@ def is_valid_text(val: Optional[str]) -> bool:
     return True
 
 def is_valid_business_card(extracted: Dict[str, Any]) -> bool:
-    """Strictly validate if extracted data belongs to an actual business card."""
+    """
+    Strictly validate if extracted data belongs to an actual business card.
+    A valid business card MUST contain:
+    1. A valid Name or Company identity.
+    2. AND at least ONE direct contact detail:
+       - Phone/Mobile number with at least 7 digits.
+       - Email address containing '@' and '.'.
+       - Website domain.
+    """
     name = extracted.get("full_name")
     company = extracted.get("company")
     email = extracted.get("email")
-    phone = extracted.get("phone")
-    job_title = extracted.get("job_title")
+    phone = extracted.get("phone") or extracted.get("mobile")
     website = extracted.get("website")
 
     valid_name = is_valid_text(name)
     valid_company = is_valid_text(company)
-    valid_email = is_valid_text(email) and "@" in str(email)
-    valid_phone = is_valid_text(phone) and any(c.isdigit() for c in str(phone))
-    valid_title = is_valid_text(job_title)
-    valid_website = is_valid_text(website)
+
+    # Phone must have at least 7 digits
+    raw_phone_digits = re.sub(r"\D", "", str(phone or ""))
+    valid_phone = is_valid_text(phone) and len(raw_phone_digits) >= 7
+
+    # Email must have @ and .
+    valid_email = is_valid_text(email) and ("@" in str(email)) and ("." in str(email))
+
+    # Website must be a valid domain string
+    valid_website = is_valid_text(website) and len(str(website)) >= 4
 
     has_identity = valid_name or valid_company
-    has_contact = valid_phone or valid_email or valid_website or valid_title
+    has_direct_contact = valid_phone or valid_email or valid_website
 
-    return bool(has_identity and has_contact)
+    return bool(has_identity and has_direct_contact)
 
 def is_valid_image(content: bytes) -> bool:
     """Validate image bytes using magic byte signatures (JPEG, PNG, WebP, GIF, BMP)."""
@@ -89,7 +104,7 @@ def extract_contact_from_url(payload: ExtractURLRequest):
     if not is_valid_business_card(extracted):
         raise HTTPException(
             status_code=422,
-            detail="Bukan Kartu Nama yang valid! Objek yang dipindai tidak mengandung informasi kontak kartu nama (Nama, Telepon, Email, atau Jabatan). Harap foto kartu nama dengan jelas."
+            detail="Bukan Kartu Nama yang valid! Objek yang dipindai tidak mengandung informasi kontak kartu nama (Telepon, Email, atau Website resmi). Harap foto kartu nama dengan jelas."
         )
 
     contact, is_dup, msg = contact_service.save_contact(extracted)
@@ -131,7 +146,7 @@ async def extract_contact_from_file(file: UploadFile = File(...)):
     if not is_valid_business_card(extracted):
         raise HTTPException(
             status_code=422,
-            detail="Bukan Kartu Nama yang valid! Objek yang dipindai tidak mengandung informasi kontak kartu nama (Nama, Telepon, Email, atau Jabatan). Harap foto kartu nama dengan jelas."
+            detail="Bukan Kartu Nama yang valid! Objek yang dipindai tidak mengandung informasi kontak kartu nama (Telepon, Email, atau Website resmi). Harap foto kartu nama dengan jelas."
         )
 
     contact, is_dup, msg = contact_service.save_contact(extracted)

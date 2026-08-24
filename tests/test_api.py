@@ -139,7 +139,16 @@ def test_empty_image_upload_validation():
 
 def test_non_business_card_validation_logic():
     from app.routers.contacts import is_valid_business_card
-    # Random object text / prompt text without real contact details
+    # Random object without phone or email or valid name
+    random_object_data = {
+        "full_name": "Chair Wood",
+        "company": "IKEA",
+        "email": "",
+        "phone": ""
+    }
+    assert is_valid_business_card(random_object_data) is False
+
+    # Prompt text / placeholder without contact info
     non_card_data = {
         "full_name": "Transcribe the full name",
         "company": "Return an empty string if absent",
@@ -148,6 +157,7 @@ def test_non_business_card_validation_logic():
     }
     assert is_valid_business_card(non_card_data) is False
 
+    # Valid card with name, company, email, phone
     valid_card_data = {
         "full_name": "Alex Pratama",
         "company": "ASTON TECH INNOVATIONS",
