@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -19,6 +20,11 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
   List<CameraDescription>? _cameras;
   int _selectedCameraIndex = 0;
   bool _isFlashOn = false;
+  bool _isAutoCaptureEnabled = true;
+
+  Timer? _autoCaptureTimer;
+  int _autoCaptureCountdown = 2;
+  bool _isAutoCapturing = false;
 
   late AnimationController _laserAnimationController;
   late Animation<double> _laserAnimation;
@@ -34,7 +40,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
 
     _laserAnimationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
 
     _laserAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -77,11 +83,52 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
       await cameraController.initialize();
       if (mounted) {
         setState(() {});
+        _startAutoCaptureTimer();
       }
     } on CameraException catch (e) {
       setState(() {
         _errorMessage = 'Error initializing camera: ${e.description}';
       });
+    }
+  }
+
+  void _startAutoCaptureTimer() {
+    _autoCaptureTimer?.cancel();
+    if (!_isAutoCaptureEnabled || _isProcessing || _ocrResult != null) return;
+
+    setState(() {
+      _autoCaptureCountdown = 2;
+      _isAutoCapturing = true;
+    });
+
+    _autoCaptureTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_isProcessing || _ocrResult != null || !_isAutoCaptureEnabled) {
+        timer.cancel();
+        setState(() => _isAutoCapturing = false);
+        return;
+      }
+
+      if (_autoCaptureCountdown > 1) {
+        setState(() {
+          _autoCaptureCountdown--;
+        });
+      } else {
+        timer.cancel();
+        _captureAndScan();
+      }
+    });
+  }
+
+  void _toggleAutoCapture() {
+    setState(() {
+      _isAutoCaptureEnabled = !_isAutoCaptureEnabled;
+    });
+    if (_isAutoCaptureEnabled) {
+      _startAutoCaptureTimer();
+    } else {
+      _autoCaptureTimer?.cancel();
+      setState(() => _isAutoCapturing = false);
     }
   }
 
@@ -106,11 +153,13 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
   }
 
   Future<void> _captureAndScan() async {
+    _autoCaptureTimer?.cancel();
     if (_controller == null || !_controller!.value.isInitialized || _isProcessing) return;
 
     try {
       setState(() {
         _isProcessing = true;
+        _isAutoCapturing = false;
         _errorMessage = null;
       });
 
@@ -136,6 +185,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
   }
 
   Future<void> _pickFromGallery() async {
+    _autoCaptureTimer?.cancel();
     if (_isProcessing) return;
 
     try {
@@ -149,6 +199,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
       if (pickedFile != null) {
         setState(() {
           _isProcessing = true;
+          _isAutoCapturing = false;
           _errorMessage = null;
         });
 
@@ -174,6 +225,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
 
   @override
   void dispose() {
+    _autoCaptureTimer?.cancel();
     _controller?.dispose();
     _laserAnimationController.dispose();
     super.dispose();
@@ -196,7 +248,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
           // 2. Viewfinder Overlay & Alignment Frame Guide
           _buildViewfinderOverlay(),
 
-          // 3. Top Header Bar (Close, Flash, Switch Camera)
+          // 3. Top Header Bar (Close, Auto-Scan, Flash, Switch Camera)
           Positioned(
             top: MediaQuery.of(context).padding.top + 10,
             left: 16,
@@ -208,14 +260,43 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
                   icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
                 ),
-                const Text(
-                  'Card Scanner',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+
+                // Auto-Capture Toggle Chip Button
+                GestureDetector(
+                  onTap: _toggleAutoCapture,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _isAutoCaptureEnabled
+                          ? const Color(0xFF10B981).withValues(alpha: 0.25)
+                          : Colors.white12,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _isAutoCaptureEnabled ? const Color(0xFF10B981) : Colors.white30,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isAutoCaptureEnabled ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+                          size: 16,
+                          color: _isAutoCaptureEnabled ? const Color(0xFF10B981) : Colors.white70,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isAutoCaptureEnabled ? 'AUTO ON' : 'AUTO OFF',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _isAutoCaptureEnabled ? const Color(0xFF10B981) : Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
+
                 Row(
                   children: [
                     IconButton(
@@ -243,9 +324,15 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
             right: 0,
             child: Column(
               children: [
-                const Text(
-                  'Align card within frame & tap button',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                Text(
+                  _isAutoCaptureEnabled
+                      ? 'Hold card steady • Auto-scanning in $_autoCaptureCountdown s'
+                      : 'Align card within frame & tap button',
+                  style: TextStyle(
+                    color: _isAutoCaptureEnabled ? const Color(0xFF10B981) : Colors.white70,
+                    fontSize: 13,
+                    fontWeight: _isAutoCaptureEnabled ? FontWeight.bold : FontWeight.normal,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -265,8 +352,11 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
                         height: 76,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 4),
-                          color: AppTheme.accentIndigo,
+                          border: Border.all(
+                            color: _isAutoCapturing ? const Color(0xFF10B981) : Colors.white,
+                            width: 4,
+                          ),
+                          color: _isAutoCapturing ? const Color(0xFF10B981) : AppTheme.accentIndigo,
                         ),
                         child: Center(
                           child: Container(
@@ -276,7 +366,11 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
                               shape: BoxShape.circle,
                               color: Colors.white,
                             ),
-                            child: const Icon(Icons.camera_alt_rounded, color: AppTheme.accentIndigo, size: 32),
+                            child: Icon(
+                              Icons.camera_alt_rounded,
+                              color: _isAutoCapturing ? const Color(0xFF10B981) : AppTheme.accentIndigo,
+                              size: 32,
+                            ),
                           ),
                         ),
                       ),
@@ -357,6 +451,8 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
   }
 
   Widget _buildViewfinderOverlay() {
+    final frameColor = _isAutoCapturing ? const Color(0xFF10B981) : AppTheme.accentCyan;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final double frameW = constraints.maxWidth * 0.85;
@@ -396,16 +492,29 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
               ),
             ),
 
-            // Frame Corners Reticle Brackets (Cyan)
+            // Frame Corners Reticle Brackets (Glowing Frame)
             Positioned(
               left: frameX,
               top: frameY,
               width: frameW,
               height: frameH,
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.accentCyan.withValues(alpha: 0.6), width: 2),
+                  border: Border.all(
+                    color: frameColor.withValues(alpha: 0.8),
+                    width: _isAutoCapturing ? 3 : 2,
+                  ),
+                  boxShadow: _isAutoCapturing
+                      ? [
+                          BoxShadow(
+                            color: frameColor.withValues(alpha: 0.4),
+                            blurRadius: 16,
+                            spreadRadius: 2,
+                          )
+                        ]
+                      : [],
                 ),
                 child: AnimatedBuilder(
                   animation: _laserAnimation,
@@ -420,10 +529,10 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> with SingleTi
                           child: Container(
                             height: 3,
                             decoration: BoxDecoration(
-                              color: AppTheme.accentCyan,
+                              color: frameColor,
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppTheme.accentCyan.withValues(alpha: 0.8),
+                                  color: frameColor.withValues(alpha: 0.8),
                                   blurRadius: 8,
                                   spreadRadius: 2,
                                 ),
