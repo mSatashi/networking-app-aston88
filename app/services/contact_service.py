@@ -95,14 +95,29 @@ def find_duplicate_contact(conn: sqlite3.Connection, contact_data: Dict) -> Opti
 
     return None
 
+PROMPT_KEYWORDS = [
+    "transcribe", "return an empty string", "never guess",
+    "absent or unreadable", "character-for-character", "separately identified"
+]
+
+def clean_field(val: Optional[str]) -> str:
+    if not val:
+        return ""
+    val_str = str(val).strip()
+    val_lower = val_str.lower()
+    for kw in PROMPT_KEYWORDS:
+        if kw in val_lower:
+            return ""
+    return val_str
+
 def save_contact(contact_data: Dict, db_path: Optional[str] = None, force_insert: bool = False) -> Tuple[ContactResponse, bool, str]:
     """
     Saves a contact into SQLite database.
     If duplicate exists and force_insert is False, ignores insertion and returns existing contact.
     Returns (ContactResponse, is_duplicate, status_message)
     """
-    full_name = contact_data.get("full_name") or "Unknown"
-    job_title = contact_data.get("job_title") or ""
+    full_name = clean_field(contact_data.get("full_name")) or "Unknown"
+    job_title = clean_field(contact_data.get("job_title"))
     
     given_role = contact_data.get("role")
     if not given_role or given_role == "General":
@@ -110,12 +125,12 @@ def save_contact(contact_data: Dict, db_path: Optional[str] = None, force_insert
     else:
         role = given_role
 
-    company = contact_data.get("company") or ""
-    email = contact_data.get("email") or ""
-    phone = contact_data.get("phone") or ""
-    mobile = contact_data.get("mobile") or ""
-    website = contact_data.get("website") or ""
-    address = contact_data.get("address") or ""
+    company = clean_field(contact_data.get("company"))
+    email = clean_field(contact_data.get("email"))
+    phone = clean_field(contact_data.get("phone"))
+    mobile = clean_field(contact_data.get("mobile"))
+    website = clean_field(contact_data.get("website"))
+    address = clean_field(contact_data.get("address"))
 
     with get_db(db_path) as conn:
         if not force_insert:

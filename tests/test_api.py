@@ -137,4 +137,23 @@ def test_empty_image_upload_validation():
     assert response.status_code == 400
     assert "Empty image file uploaded" in response.json()["detail"]
 
+def test_non_business_card_validation_logic():
+    from app.routers.contacts import is_valid_business_card
+    # Random object text / prompt text without real contact details
+    non_card_data = {
+        "full_name": "Transcribe the full name",
+        "company": "Return an empty string if absent",
+        "email": "transcribe character for character",
+        "phone": ""
+    }
+    assert is_valid_business_card(non_card_data) is False
+
+    valid_card_data = {
+        "full_name": "Alex Pratama",
+        "company": "ASTON TECH INNOVATIONS",
+        "email": "alex.pratama@astontech.co.id",
+        "phone": "+62 812 9876 5432"
+    }
+    assert is_valid_business_card(valid_card_data) is True
+
 

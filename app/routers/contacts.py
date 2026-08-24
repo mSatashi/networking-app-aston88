@@ -17,23 +17,56 @@ from app.services import contact_service
 
 router = APIRouter(prefix="/api/contacts", tags=["Contacts & OCR"])
 
+PROMPT_KEYWORDS = [
+    "transcribe", "return an empty string", "never guess",
+    "absent or unreadable", "character-for-character", "separately identified"
+]
+
+def is_valid_text(val: Optional[str]) -> bool:
+    if not val:
+        return False
+    val_str = str(val).strip()
+    val_lower = val_str.lower()
+    if not val_lower or val_lower in ["unknown", "none", "null", "n/a", "test"]:
+        return False
+    for kw in PROMPT_KEYWORDS:
+        if kw in val_lower:
+            return False
+    return True
+
+def is_valid_business_card(extracted: Dict[str, Any]) -> bool:
+    """Strictly validate if extracted data belongs to an actual business card."""
+    name = extracted.get("full_name")
+    company = extracted.get("company")
+    email = extracted.get("email")
+    phone = extracted.get("phone")
+    job_title = extracted.get("job_title")
+    website = extracted.get("website")
+
+    valid_name = is_valid_text(name)
+    valid_company = is_valid_text(company)
+    valid_email = is_valid_text(email) and "@" in str(email)
+    valid_phone = is_valid_text(phone) and any(c.isdigit() for c in str(phone))
+    valid_title = is_valid_text(job_title)
+    valid_website = is_valid_text(website)
+
+    has_identity = valid_name or valid_company
+    has_contact = valid_phone or valid_email or valid_website or valid_title
+
+    return bool(has_identity and has_contact)
+
 def is_valid_image(content: bytes) -> bool:
     """Validate image bytes using magic byte signatures (JPEG, PNG, WebP, GIF, BMP)."""
     if len(content) < 12:
         return False
-    # JPEG
     if content.startswith(b"\xff\xd8\xff"):
         return True
-    # PNG
     if content.startswith(b"\x89PNG\r\n\x1a\n"):
         return True
-    # WebP (RIFF + WEBP)
     if content.startswith(b"RIFF") and content[8:12] == b"WEBP":
         return True
-    # GIF
     if content.startswith(b"GIF87a") or content.startswith(b"GIF89a"):
         return True
-    # BMP
     if content.startswith(b"BM"):
         return True
     return False
@@ -42,8 +75,6 @@ def is_valid_image(content: bytes) -> bool:
 def extract_contact_from_url(payload: ExtractURLRequest):
     """
     Extract contact details from image URL via Roboflow OCR Workflow.
-    Extracted data is categorized by role and saved to SQLite DB.
-    If contact already exists (duplicate email/phone), duplicate insertion is ignored.
     """
     try:
         client = RoboflowClient()
@@ -55,14 +86,10 @@ def extract_contact_from_url(payload: ExtractURLRequest):
     except RoboflowOCRError as e:
         raise HTTPException(status_code=502, detail=f"OCR Service Error: {str(e)}")
 
-    # Ensure meaningful contact data was detected
-    has_name = bool(extracted.get("full_name") and extracted.get("full_name") != "Unknown")
-    has_contact_info = bool(extracted.get("email") or extracted.get("phone") or extracted.get("company") or extracted.get("job_title"))
-    
-    if not has_name and not has_contact_info:
+    if not is_valid_business_card(extracted):
         raise HTTPException(
             status_code=422,
-            detail="Unable to detect business card or extract contact details from this image. Please upload a clear business card photo."
+            detail="Bukan Kartu Nama yang valid! Objek yang dipindai tidak mengandung informasi kontak kartu nama (Nama, Telepon, Email, atau Jabatan). Harap foto kartu nama dengan jelas."
         )
 
     contact, is_dup, msg = contact_service.save_contact(extracted)
@@ -77,8 +104,6 @@ def extract_contact_from_url(payload: ExtractURLRequest):
 async def extract_contact_from_file(file: UploadFile = File(...)):
     """
     Extract contact details from uploaded image file via Roboflow OCR Workflow.
-    Extracted data is categorized by role and saved to SQLite DB.
-    If contact already exists (duplicate email/phone), duplicate insertion is ignored.
     """
     if file.content_type and not (file.content_type.startswith("image/") or file.content_type == "application/octet-stream"):
         raise HTTPException(status_code=400, detail="Uploaded file must be a valid image (JPEG, PNG, WebP)")
@@ -103,14 +128,10 @@ async def extract_contact_from_file(file: UploadFile = File(...)):
     except RoboflowOCRError as e:
         raise HTTPException(status_code=502, detail=f"OCR Service Error: {str(e)}")
 
-    # Ensure meaningful contact data was detected
-    has_name = bool(extracted.get("full_name") and extracted.get("full_name") != "Unknown")
-    has_contact_info = bool(extracted.get("email") or extracted.get("phone") or extracted.get("company") or extracted.get("job_title"))
-
-    if not has_name and not has_contact_info:
+    if not is_valid_business_card(extracted):
         raise HTTPException(
             status_code=422,
-            detail="Unable to detect business card or extract contact details from this image. Please upload a clear business card photo."
+            detail="Bukan Kartu Nama yang valid! Objek yang dipindai tidak mengandung informasi kontak kartu nama (Nama, Telepon, Email, atau Jabatan). Harap foto kartu nama dengan jelas."
         )
 
     contact, is_dup, msg = contact_service.save_contact(extracted)
@@ -130,7 +151,7 @@ def create_contact_manually(payload: ContactCreate, force: bool = Query(False, d
 
 @router.get("", response_model=List[ContactResponse])
 def list_contacts(
-    role: Optional[str] = Query(None, description="Filter contacts by role (e.g. Executive, Engineering, Management, Sales & Marketing)"),
+    role: Optional[str] = Query(None, description="Filter contacts by role"),
     company: Optional[str] = Query(None, description="Filter contacts by company name"),
     search: Optional[str] = Query(None, description="Search term for name, title, or email")
 ):
@@ -138,22 +159,22 @@ def list_contacts(
     return contact_service.get_contacts(role=role, company=company, search=search)
 
 @router.get("/by-role", response_model=List[RoleGroupResponse])
-def get_contacts_by_role():
+def list_contacts_by_role():
     """Retrieve contacts grouped by role category."""
     return contact_service.get_contacts_grouped_by_role()
 
 @router.get("/{contact_id}", response_model=ContactResponse)
-def get_contact_detail(contact_id: int):
-    """Get single contact by ID."""
+def get_contact(contact_id: int):
+    """Retrieve contact details by ID."""
     contact = contact_service.get_contact_by_id(contact_id)
     if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+        raise HTTPException(status_code=404, detail=f"Contact ID {contact_id} not found")
     return contact
 
 @router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remove_contact(contact_id: int):
-    """Delete contact by ID."""
-    success = contact_service.delete_contact(contact_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Contact not found")
+def delete_contact(contact_id: int):
+    """Delete a contact by ID."""
+    deleted = contact_service.delete_contact(contact_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Contact ID {contact_id} not found")
     return None
